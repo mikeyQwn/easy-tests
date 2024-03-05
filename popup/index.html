@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Easy tests</title>
+        <style>
+            .flex-col {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .gap-2 {
+                gap: 2rem;
+            }
+
+            .gap-1 {
+                gap: 1rem;
+            }
+
+            .padding-1-5 {
+                padding: 1.5rem;
+            }
+
+            .bold {
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <form class="flex-col gap-2 padding-1-5" id="form">
+            <label class="flex-col gap-1 bold">
+                Upload a json file with your answers here
+                <input type="file" accept=".json" />
+            </label>
+            <input type="submit" value="Upload" />
+        </form>
+        <script src="index.js"></script>
+    </body>
+</html>

@@ -1,0 +1,31 @@
+{
+    "manifest_version": 2,
+    "name": "Easy Tests",
+    "version": "0.0.1",
+
+    "description": "Solve tests easily using answers in a json file",
+
+    "browser_action": {
+        "default_popup": "popup/index.html"
+    },
+
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["index.js"]
+        }
+    ],
+
+    "commands": {
+        "show-answer": {
+            "suggested_key": {
+                "default": "Ctrl+Alt+P"
+            },
+            "description": "Show the answer in a little popup"
+        }
+    },
+
+    "background": {
+        "scripts": ["background.js"]
+    }
+}
