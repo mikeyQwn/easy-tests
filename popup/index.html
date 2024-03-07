@@ -25,14 +25,33 @@
             .bold {
                 font-weight: bold;
             }
+
+            .error {
+                color: red;
+            }
+
+            .success {
+                color: green;
+            }
+
+            .non-resizable {
+                resize: none;
+            }
         </style>
     </head>
     <body>
-        <form class="flex-col gap-2 padding-1-5" id="form">
-            <label class="flex-col gap-1 bold">
-                Upload a json file with your answers here
-                <input type="file" accept=".json" />
-            </label>
+        <form class="flex-col padding-1-5" id="form">
+            <div class="flex-col">
+                <label class="flex-col bold">
+                    Answers
+                    <textarea
+                        class="non-resizable"
+                        placeholder="Paste your json file here"
+                        name="upload"
+                    ></textarea>
+                </label>
+                <div id="error-message" class="error"></div>
+            </div>
             <input type="submit" value="Upload" />
         </form>
         <script src="index.js"></script>
