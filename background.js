@@ -3,6 +3,11 @@
  */
 let answers = {};
 
+const EVENT_TYPES = {
+    SHOW_ANSWER: "showAnswer",
+    GET_QUESTION: "getQuestion",
+};
+
 /**
  * @param {unknown} object
  * @returns {object is {updatedAnswers: Record<string, string>}}
@@ -96,31 +101,49 @@ browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
         });
         return;
     }
-
-    sendToContext({ updatedAnswers: req }).catch((_) => {
-        console.error(
-            "[background] Failed to send a message\nto the context script"
-        );
-    });
+    answers = req.updatedAnswers;
     sendRes({
         isOk: true,
         message: "Answers have been\nupdated",
     });
 });
 
-function sendEvent() {
-    sendToContext({
-        show_answer: true,
-    }).catch((_) => {
+async function getQuestion() {
+    try {
+        const q = await sendToContext({
+            type: EVENT_TYPES.GET_QUESTION,
+        });
+        if (!("question" in q && typeof q.question === "string")) {
+            console.error("[background] Malformed question recieved");
+        }
+        return q.question;
+    } catch {
         console.error(
             "[background] Failed to send a message to the context script"
         );
+    }
+}
+
+function showAnswer() {
+    getQuestion().then((question) => {
+        const answer = getAnswer(answers, question, 10);
+        if (!answer) {
+            sendToContext({
+                type: EVENT_TYPES.SHOW_ANSWER,
+                message: "[404]",
+            });
+        } else {
+            sendToContext({
+                type: EVENT_TYPES.SHOW_ANSWER,
+                message: answer,
+            });
+        }
     });
 }
 
 browser.commands.onCommand.addListener((command) => {
     if (command === "show-answer") {
-        sendEvent();
+        showAnswer();
     } else {
         console.error("[background] Could not parse current command");
     }

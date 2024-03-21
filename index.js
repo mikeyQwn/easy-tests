@@ -1,4 +1,7 @@
-main();
+const EVENT_TYPES = {
+    SHOW_ANSWER: "showAnswer",
+    GET_QUESTION: "getQuestion",
+};
 
 /**
  * @param {HTMLElement} elem
@@ -17,6 +20,17 @@ function getElementText(elem) {
     return "";
 }
 
+function tryShowAnswer(req) {
+    if (!("message" in req && typeof req.message === "string")) {
+        console.error("[context] Invalid show-answer request");
+        console.error(req);
+        return;
+    }
+    const answerEl = document.createElement("div");
+    answerEl.innerText = req.message;
+    document.body.appendChild(answerEl);
+}
+
 function main() {
     /**
      * @type {[number, number]}
@@ -32,11 +46,22 @@ function main() {
         lastTarget = e.target;
     });
 
-    browser.runtime.onMessage.addListener((req, _sender, _sendRes) => {
-        console.log(req);
-    });
+    browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
+        if (!("type" in req)) {
+            console.error("[context] Invalid request");
+            return;
+        }
+        const type = req.type;
 
-    setInterval(() => {
-        console.log(getElementText(lastTarget));
-    }, 5000);
+        if (type === EVENT_TYPES.GET_QUESTION) {
+            const question = getElementText(lastTarget);
+            sendRes({ question: question });
+        } else if (type === EVENT_TYPES.SHOW_ANSWER) {
+            tryShowAnswer(req);
+        } else {
+            console.error("[context] Invalid request type");
+        }
+    });
 }
+
+main();
