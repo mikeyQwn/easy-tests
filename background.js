@@ -76,6 +76,18 @@ function getAnswer(questionToAnswer, question, fitness) {
     return minScore <= fitness ? ans : null;
 }
 
+/**
+ * @param {string} message
+ * @returns {Promise<any>}
+ */
+async function sendToContext(message) {
+    const tabs = await browser.tabs.query({
+        currentWindow: true,
+        active: true,
+    });
+    return browser.tabs.sendMessage(tabs[0].id, message);
+}
+
 browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
     if (!isAnswers(req)) {
         sendRes({
@@ -84,16 +96,11 @@ browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
         });
         return;
     }
-    browser.tabs.query({ currentWindow: true, active: true }).then((tabs) => {
-        browser.tabs
-            .sendMessage(tabs[0].id, {
-                updatedAnswers: req,
-            })
-            .catch((_) => {
-                console.error(
-                    "[background] Failed to send a message\nto the context script"
-                );
-            });
+
+    sendToContext({ updatedAnswers: req }).catch((_) => {
+        console.error(
+            "[background] Failed to send a message\nto the context script"
+        );
     });
     sendRes({
         isOk: true,
@@ -102,16 +109,12 @@ browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
 });
 
 function sendEvent() {
-    browser.tabs.query({ currentWindow: true, active: true }).then((tabs) => {
-        browser.tabs
-            .sendMessage(tabs[0].id, {
-                show_answer: true,
-            })
-            .catch((_) => {
-                console.error(
-                    "[background] Failed to send a message to the context script"
-                );
-            });
+    sendToContext({
+        show_answer: true,
+    }).catch((_) => {
+        console.error(
+            "[background] Failed to send a message to the context script"
+        );
     });
 }
 
