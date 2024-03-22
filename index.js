@@ -4,6 +4,11 @@ const EVENT_TYPES = {
 };
 
 /**
+ * @type {HTMLDivElement | null}
+ */
+let answerEl = null;
+
+/**
  * @param {HTMLElement} elem
  * @return {string}
  */
@@ -20,15 +25,30 @@ function getElementText(elem) {
     return "";
 }
 
+function createAnswerEl() {
+    answerEl = document.createElement("div");
+    answerEl.hidden = true;
+    answerEl.style.position = "fixed";
+    answerEl.style.minWidth = "10px";
+    answerEl.style.minHeight = "5px";
+    answerEl.style.zIndex = "10000";
+    answerEl.style.left = "10px";
+    answerEl.style.bottom = "10px";
+    document.body.appendChild(answerEl);
+}
+
 function tryShowAnswer(req) {
     if (!("message" in req && typeof req.message === "string")) {
         console.error("[context] Invalid show-answer request");
         console.error(req);
         return;
     }
-    const answerEl = document.createElement("div");
+    if (!answerEl) {
+        createAnswerEl();
+    }
+
+    answerEl.hidden = false;
     answerEl.innerText = req.message;
-    document.body.appendChild(answerEl);
 }
 
 function main() {
@@ -44,6 +64,9 @@ function main() {
     window.addEventListener("mousemove", (e) => {
         cursorPosition = [e.clientX, e.clientY];
         lastTarget = e.target;
+        if (answerEl) {
+            answerEl.hidden = true;
+        }
     });
 
     browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
