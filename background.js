@@ -2,6 +2,7 @@
  * @type {Record<string, string>}
  */
 let answers = {};
+let gptToken = "[TODO: ADD TOKEN LOADING]";
 
 const EVENT_TYPES = {
     SHOW_ANSWER: "showAnswer",
@@ -61,13 +62,51 @@ function getScore(a, b) {
     return dist - diff;
 }
 
+function askGpt() {}
+
+/**
+ * @param {string} question
+ * @returns {Promise<string | null>}
+ */
+async function getGptAsnwer(question) {
+    const apiUrl =
+        "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
+    const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${gptToken}`,
+    };
+    const body = {
+        model: "GigaChat:latest",
+        messages: [
+            {
+                role: "user",
+                content: question,
+            },
+        ],
+        temperature: 1.0,
+        top_p: 0.1,
+        n: 1,
+        stream: false,
+        max_tokens: 512,
+        repetition_penalty: 1,
+    };
+    const ans = await fetch(apiUrl, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(body),
+    });
+    const ansJson = await ans.json();
+    return ansJson.choices[0].message.content;
+}
+
 /**
  * @param {Record<string, string>} questionToAnswer
  * @param {string} question
  * @param {number} fitness
- * @returns {number | null}
+ * @returns {Promise<string | null>}
  */
-function getAnswer(questionToAnswer, question, fitness) {
+async function getAnswer(questionToAnswer, question, fitness) {
     let minScore = 1_000_000;
     let ans = null;
     for (const key of Object.keys(questionToAnswer)) {
@@ -78,7 +117,14 @@ function getAnswer(questionToAnswer, question, fitness) {
         minScore = score;
         ans = questionToAnswer[key];
     }
-    return minScore <= fitness ? ans : null;
+    if (minScore > fitness) {
+        try {
+            ans = await getGptAsnwer(question);
+        } catch (e) {
+            console.error("[background] Failed to fetch data from gpt");
+        }
+    }
+    return ans;
 }
 
 /**
@@ -125,8 +171,8 @@ async function getQuestion() {
 }
 
 function showAnswer() {
-    getQuestion().then((question) => {
-        const answer = getAnswer(answers, question, 10);
+    getQuestion().then(async (question) => {
+        const answer = await getAnswer(answers, question, 10);
         if (!answer) {
             sendToContext({
                 type: EVENT_TYPES.SHOW_ANSWER,

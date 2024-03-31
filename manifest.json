@@ -5,6 +5,8 @@
 
     "description": "Solve tests easily using answers in a json file",
 
+    "permissions": ["https://gigachat.devices.sberbank.ru/api/*"],
+
     "browser_action": {
         "default_popup": "popup/index.html"
     },
