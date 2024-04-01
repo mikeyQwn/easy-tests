@@ -24,6 +24,12 @@
                 "default": "Ctrl+Alt+P"
             },
             "description": "Show the answer in a little popup"
+        },
+        "force-gpt": {
+            "suggested_key": {
+                "default": "Ctrl+Alt+L"
+            },
+            "description": "Ask gigachat for help with this question"
         }
     },
 
