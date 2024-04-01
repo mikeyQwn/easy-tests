@@ -2,7 +2,7 @@
  * @type {Record<string, string>}
  */
 let answers = {};
-let gptToken = "[TODO: ADD TOKEN LOADING]";
+let gptToken = "[TODO: add token loading]";
 
 const EVENT_TYPES = {
     SHOW_ANSWER: "showAnswer",
@@ -110,18 +110,27 @@ async function getAnswer(questionToAnswer, question, fitness) {
     let minScore = 1_000_000;
     let ans = null;
     for (const key of Object.keys(questionToAnswer)) {
-        const score = getScore(key, question);
+        let score = getScore(key, question);
+        if (key.length < 20) {
+            if (question.toLowerCase().match(key.toLowerCase())) {
+                score = 0;
+            } else {
+                score = 1_000_000;
+            }
+        }
         if (score >= minScore) {
             continue;
         }
         minScore = score;
         ans = questionToAnswer[key];
     }
+    console.log(minScore, fitness);
     if (minScore > fitness) {
         try {
             ans = await getGptAsnwer(question);
         } catch (e) {
             console.error("[background] Failed to fetch data from gpt");
+            ans = "[404]";
         }
     }
     return ans;
@@ -172,7 +181,7 @@ async function getQuestion() {
 
 function showAnswer() {
     getQuestion().then(async (question) => {
-        const answer = await getAnswer(answers, question, 10);
+        const answer = await getAnswer(answers, question, 6);
         if (!answer) {
             sendToContext({
                 type: EVENT_TYPES.SHOW_ANSWER,
