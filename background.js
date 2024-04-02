@@ -2,7 +2,7 @@
  * @type {Record<string, string>}
  */
 let answers = {};
-let gptToken = "[TODO: add token loading]";
+let gptToken = "";
 
 const EVENT_TYPES = {
     SHOW_ANSWER: "showAnswer",
@@ -23,6 +23,20 @@ function isAnswers(object) {
     return Object.values(object.updatedAnswers).every((v) => {
         return typeof v === "string";
     });
+}
+
+/**
+ * @param {unknown} object
+ * @returns {object is {updatedToken: string}}
+ */
+function isToken(object) {
+    if (!object || typeof object !== "object") {
+        return false;
+    }
+    if (!("updatedToken" in object)) {
+        return false;
+    }
+    return typeof object.updatedToken === "string";
 }
 
 /**
@@ -156,6 +170,10 @@ async function sendToContext(message) {
 }
 
 browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
+    if (isToken(req)) {
+        gptToken = req.updatedToken;
+        return;
+    }
     if (!isAnswers(req)) {
         sendRes({
             isOk: false,
