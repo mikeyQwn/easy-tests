@@ -66,10 +66,6 @@ function main() {
         const formData = new FormData(form);
 
         const upload = formData.get("upload");
-        try {
-            const gptToken = formData.get("token");
-            browser.runtime.sendMessage({ updatedToken: gptToken });
-        } catch {}
         if (!upload) {
             setError(errorMessage, "Answers field is empty");
             return;
@@ -82,7 +78,7 @@ function main() {
                     if (!isBackgroundAnswer(res)) {
                         setError(
                             errorMessage,
-                            "Cold not get an answer\nfrom background script"
+                            "Cold not get an answer\nfrom background script",
                         );
                         return;
                     }

@@ -199,7 +199,7 @@ async function getQuestion() {
         return q.question;
     } catch {
         console.error(
-            "[background] Failed to send a message to the context script"
+            "[background] Failed to send a message to the context script",
         );
     }
 }
