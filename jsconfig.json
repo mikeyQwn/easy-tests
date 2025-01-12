@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "checkJs": true,
+        "strict": true,
+        "lib": ["es2017", "dom", "firefox-webext-browser"],
+        "typeAcquisition": {
+            "include": ["firefox-webext-browser"]
+        }
+    },
+    "exclude": ["node_modules", "**/node_modules/*"]
+}

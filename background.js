@@ -1,43 +1,66 @@
 /**
- * @type {Record<string, string>}
+ * @param {unknown} value
+ * @returns {value is Record<string, string>}
+ */
+function isObject(value) {
+    return !!value && typeof value === "object";
+}
+
+/**
+ * @param {unknown} value
+ * @param {Record<string, string>} schema
+ * @returns {boolean}
+ */
+function validateObject(value, schema) {
+    if (!isObject(value)) {
+        return false;
+    }
+
+    for (const [key, type] of Object.entries(schema)) {
+        if (!(key in value) || typeof value[key] != type) {
+            return false;
+        }
+
+        if (type === "object" && !value[key]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * @param {unknown} object
+ * @returns {object is BackgroundAnswer}
+ */
+function isBackgroundAnswer(object) {
+    const schema = {
+        isOk: "boolean",
+        message: "string",
+    };
+    return validateObject(object, schema);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is {updatedAnswers: Record<string, unknown>}}
+ */
+function isAnswers(value) {
+    const schema = {
+        updatedAnswers: "object",
+    };
+    return validateObject(value, schema);
+}
+
+/**
+ * @type {Record<string, unknown>}
  */
 let answers = {};
-let gptToken = "";
 
-const EVENT_TYPES = {
+const EVENT_TYPES_BACKGROUND = {
     SHOW_ANSWER: "showAnswer",
     GET_QUESTION: "getQuestion",
 };
-
-/**
- * @param {unknown} object
- * @returns {object is {updatedAnswers: Record<string, string>}}
- */
-function isAnswers(object) {
-    if (!object || typeof object !== "object") {
-        return false;
-    }
-    if (!("updatedAnswers" in object)) {
-        return false;
-    }
-    return Object.values(object.updatedAnswers).every((v) => {
-        return typeof v === "string";
-    });
-}
-
-/**
- * @param {unknown} object
- * @returns {object is {updatedToken: string}}
- */
-function isToken(object) {
-    if (!object || typeof object !== "object") {
-        return false;
-    }
-    if (!("updatedToken" in object)) {
-        return false;
-    }
-    return typeof object.updatedToken === "string";
-}
 
 /**
  * @param {string} a
@@ -76,59 +99,12 @@ function getScore(a, b) {
     return dist - diff;
 }
 
-function askGpt() {}
-
 /**
+ * @param {Record<string, unknown>} questionToAnswer
  * @param {string} question
- * @returns {Promise<string | null>}
+ * @returns {Promise<unknown>}
  */
-async function getGptAsnwer(question) {
-    const apiUrl =
-        "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
-    const headers = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${gptToken}`,
-    };
-    const body = {
-        model: "GigaChat:latest",
-        messages: [
-            {
-                role: "user",
-                content: question,
-            },
-        ],
-        temperature: 1.0,
-        top_p: 0.1,
-        n: 1,
-        stream: false,
-        max_tokens: 512,
-        repetition_penalty: 1,
-    };
-    const ans = await fetch(apiUrl, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(body),
-    });
-    const ansJson = await ans.json();
-    return ansJson.choices[0].message.content;
-}
-
-/**
- * @param {Record<string, string>} questionToAnswer
- * @param {string} question
- * @param {number} fitness
- * @returns {Promise<string | null>}
- */
-async function getAnswer(questionToAnswer, question, fitness, isGptForced) {
-    if (isGptForced) {
-        try {
-            return await getGptAsnwer(question);
-        } catch (e) {
-            console.error("[background] Failed to fetch data from gpt");
-            return "[404]";
-        }
-    }
+async function getAnswer(questionToAnswer, question) {
     let minScore = 1_000_000;
     let ans = null;
     for (const key of Object.keys(questionToAnswer)) {
@@ -146,19 +122,12 @@ async function getAnswer(questionToAnswer, question, fitness, isGptForced) {
         minScore = score;
         ans = questionToAnswer[key];
     }
-    if (minScore > fitness) {
-        try {
-            ans = await getGptAsnwer(question);
-        } catch (e) {
-            console.error("[background] Failed to fetch data from gpt");
-            ans = "[404]";
-        }
-    }
+
     return ans;
 }
 
 /**
- * @param {string} message
+ * @param {Record<string, unknown>} message
  * @returns {Promise<any>}
  */
 async function sendToContext(message) {
@@ -166,18 +135,24 @@ async function sendToContext(message) {
         currentWindow: true,
         active: true,
     });
-    return browser.tabs.sendMessage(tabs[0].id, message);
+
+    if (tabs.length < 1) {
+        return;
+    }
+
+    const first = tabs[0];
+    if (!first.id) {
+        return;
+    }
+
+    return browser.tabs.sendMessage(first.id, message);
 }
 
 browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
-    if (isToken(req)) {
-        gptToken = req.updatedToken;
-        return;
-    }
     if (!isAnswers(req)) {
         sendRes({
             isOk: false,
-            message: "Answers should be\nstring-string json",
+            message: "Answers should be\nvalid json",
         });
         return;
     }
@@ -191,30 +166,30 @@ browser.runtime.onMessage.addListener((req, _sender, sendRes) => {
 async function getQuestion() {
     try {
         const q = await sendToContext({
-            type: EVENT_TYPES.GET_QUESTION,
+            type: EVENT_TYPES_BACKGROUND.GET_QUESTION,
         });
         if (!("question" in q && typeof q.question === "string")) {
             console.error("[background] Malformed question recieved");
         }
         return q.question;
-    } catch {
+    } catch (e) {
         console.error(
-            "[background] Failed to send a message to the context script",
+            `[background] Failed to send a message to the context script ${e}`,
         );
     }
 }
 
-function showAnswer(isGptForced) {
+function showAnswer() {
     getQuestion().then(async (question) => {
-        const answer = await getAnswer(answers, question, 6, isGptForced);
+        const answer = await getAnswer(answers, question);
         if (!answer) {
             sendToContext({
-                type: EVENT_TYPES.SHOW_ANSWER,
+                type: EVENT_TYPES_BACKGROUND.SHOW_ANSWER,
                 message: "[404]",
             });
         } else {
             sendToContext({
-                type: EVENT_TYPES.SHOW_ANSWER,
+                type: EVENT_TYPES_BACKGROUND.SHOW_ANSWER,
                 message: answer,
             });
         }
@@ -223,9 +198,7 @@ function showAnswer(isGptForced) {
 
 browser.commands.onCommand.addListener((command) => {
     if (command === "show-answer") {
-        showAnswer(false);
-    } else if ((command = "force-gpt")) {
-        showAnswer(true);
+        showAnswer();
     } else {
         console.error("[background] Could not parse current command");
     }

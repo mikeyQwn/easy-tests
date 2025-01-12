@@ -6,24 +6,46 @@ main();
  */
 
 /**
- * @param {unknown} object
- * @returns {object is BackgroundAnswer}
+ * @param {unknown} value
+ * @returns {value is Record<string, string>}
  */
-function isBackgroundAnswer(object) {
-    if (!object || typeof object !== "object") {
+function isObject(value) {
+    return !!value && typeof value === "object";
+}
+
+/**
+ * @param {unknown} value
+ * @param {Record<string, string>} schema
+ * @returns {boolean}
+ */
+function validateObject(value, schema) {
+    if (!isObject(value)) {
         return false;
     }
-    if (!("isOk" in object && "message" in object)) {
-        return false;
+
+    for (const [key, type] of Object.entries(schema)) {
+        if (!(key in value) || typeof value[key] != type) {
+            return false;
+        }
     }
-    if (typeof object.isOk !== "boolean" || typeof object.message != "string") {
-        return false;
-    }
+
     return true;
 }
 
 /**
- * @param {HTMLDivElement} div
+ * @param {unknown} object
+ * @returns {object is BackgroundAnswer}
+ */
+function isBackgroundAnswer(object) {
+    const schema = {
+        isOk: "boolean",
+        message: "string",
+    };
+    return validateObject(object, schema);
+}
+
+/**
+ * @param {HTMLElement} div
  * @param {string} message
  */
 function setError(div, message) {
@@ -33,7 +55,7 @@ function setError(div, message) {
 }
 
 /**
- * @param {HTMLDivElement} div
+ * @param {HTMLElement} div
  * @param {string} message
  */
 function setSuccess(div, message) {
@@ -42,14 +64,42 @@ function setSuccess(div, message) {
     div.innerText = message;
 }
 
+/**
+ * @param {HTMLElement} _form
+ * @returns {_form is HTMLFormElement}
+ */
+function isFormTrustMe(_form) {
+    return true;
+}
+
+/**
+ * @param {HTMLFormElement} form
+ * @returns {Record<string, unknown>}
+ */
+function validateForm(form) {
+    const formData = new FormData(form);
+    const upload = formData.get("upload");
+    if (!upload) {
+        throw "Answers field is empty";
+    }
+
+    if (typeof upload !== "string") {
+        throw "Answers field is not string somehow";
+    }
+
+    try {
+        const data = JSON.parse(upload);
+        if (!isObject(data)) {
+            throw "Invalid json format";
+        }
+        return data;
+    } catch {
+        throw "The answers are not\nvalid Json";
+    }
+}
+
 function main() {
-    /**
-     * @type {HTMLFormElement | null}
-     */
     const form = document.getElementById("form");
-    /**
-     * @type {HTMLDivElement | null}
-     */
     const errorMessage = document.getElementById("error-message");
 
     if (!form || !errorMessage) {
@@ -57,39 +107,34 @@ function main() {
         return;
     }
 
+    if (!isFormTrustMe(form)) {
+        return;
+    }
+
     form.onsubmit = (e) => {
         e.preventDefault();
-        /**
-         * @type {HTMLFormElement}
-         */
-        const form = e.target;
-        const formData = new FormData(form);
 
-        const upload = formData.get("upload");
-        if (!upload) {
-            setError(errorMessage, "Answers field is empty");
-            return;
-        }
         try {
-            const data = JSON.parse(upload);
+            const data = validateForm(form);
             browser.runtime
                 .sendMessage({ updatedAnswers: data })
                 .then((res) => {
                     if (!isBackgroundAnswer(res)) {
-                        setError(
-                            errorMessage,
-                            "Cold not get an answer\nfrom background script",
-                        );
-                        return;
+                        throw "Cold not get an answer\nfrom background script";
                     }
                     if (res.isOk) {
                         setSuccess(errorMessage, res.message);
                     } else {
-                        setError(errorMessage, res.message);
+                        throw res.message;
                     }
                 });
-        } catch {
-            setError(errorMessage, "The answers are not\nvalid Json");
+        } catch (err) {
+            if (typeof err !== "string") {
+                console.error(`[index] ${err}`);
+                return;
+            }
+
+            setError(errorMessage, err);
         }
     };
 }
