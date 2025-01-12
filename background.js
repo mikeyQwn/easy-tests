@@ -102,11 +102,14 @@ function getScore(a, b) {
 /**
  * @param {Record<string, unknown>} questionToAnswer
  * @param {string} question
- * @returns {Promise<unknown>}
+ * @returns {Promise<[string, number, unknown] | null>}
  */
-async function getAnswer(questionToAnswer, question) {
+async function getQuestionAnswer(questionToAnswer, question) {
     let minScore = 1_000_000;
-    let ans = null;
+    /**
+     * @type {[string | null, unknown | null]}
+     */
+    let [matchedQuestion, answer] = [null, null];
     for (const key of Object.keys(questionToAnswer)) {
         let score = getScore(key, question);
         if (key.length < 20) {
@@ -120,10 +123,16 @@ async function getAnswer(questionToAnswer, question) {
             continue;
         }
         minScore = score;
-        ans = questionToAnswer[key];
+
+        matchedQuestion = key;
+        answer = questionToAnswer[key];
     }
 
-    return ans;
+    if (!matchedQuestion || !answer) {
+        return null;
+    }
+
+    return [matchedQuestion, minScore, answer];
 }
 
 /**
@@ -181,18 +190,19 @@ async function getQuestion() {
 
 function showAnswer() {
     getQuestion().then(async (question) => {
-        const answer = await getAnswer(answers, question);
-        if (!answer) {
+        const res = await getQuestionAnswer(answers, question);
+        if (!res) {
             sendToContext({
                 type: EVENT_TYPES_BACKGROUND.SHOW_ANSWER,
                 message: "[404]",
             });
-        } else {
-            sendToContext({
-                type: EVENT_TYPES_BACKGROUND.SHOW_ANSWER,
-                message: answer,
-            });
+            return;
         }
+        const [q, s, a] = res;
+        sendToContext({
+            type: EVENT_TYPES_BACKGROUND.SHOW_ANSWER,
+            message: `Match: ${q}\nDiff: ${s}\nAnswer: ${a}`,
+        });
     });
 }
 
